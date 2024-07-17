@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta
 import os
 import csv
-from faker import Faker  # Import Faker for generating random names and addresses
+from faker import Faker
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
@@ -12,6 +12,10 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from colorama import init, Fore, Style
+
+# Initialize colorama for cross-platform ANSI color support
+init(autoreset=True)
 
 # Credit card generator class
 class CreditCardGenerator:
@@ -38,7 +42,6 @@ class CreditCardGenerator:
         self.generate_cc_exp()
 
     def generate_cc_exp(self):
-        # Generate expiration date 1 to 5 years from now
         current_date = datetime.now()
         exp_date = current_date + timedelta(days=random.randint(365, 1825))
         self.cc_exp = exp_date
@@ -77,7 +80,7 @@ def save_to_txt(cards, filename):
             f.write(f"CVV: {card['CVV']}\n")
             f.write(f"Exp: {card['Exp']}\n")
             f.write("------------------------------\n")
-    print(f"Cards saved to {filename}")
+    print(Fore.GREEN + f"Cards saved to {filename}")
 
 # Function to save cards to CSV file
 def save_to_csv(cards, filename):
@@ -86,7 +89,7 @@ def save_to_csv(cards, filename):
         writer = csv.DictWriter(f, keys)
         writer.writeheader()
         writer.writerows(cards)
-    print(f"Cards saved to {filename}")
+    print(Fore.GREEN + f"Cards saved to {filename}")
 
 # Function to generate fake names and addresses
 def generate_fake_info(num_entries):
@@ -104,35 +107,32 @@ def generate_fake_info(num_entries):
 
 # Function to interact with Stripe checkout link using Selenium
 def interact_with_stripe_checkout(checkout_link, cards):
-    # Setup Selenium
     service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service)
     
     try:
         driver.get(checkout_link)
-        print("Opened checkout link successfully")
+        print(Fore.GREEN + "Opened checkout link successfully")
         
         WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.NAME, "cardnumber")))
-        print("Found card number field")
+        print(Fore.GREEN + "Found card number field")
 
-        # Fill in card details
         for card in cards:
             driver.find_element(By.NAME, "cardnumber").send_keys(card['Number'])
             driver.find_element(By.NAME, "exp-date").send_keys(card['Exp'])
             driver.find_element(By.NAME, "cvc").send_keys(card['CVV'])
-            time.sleep(1)  # Add a small delay between entering each field
-            print(f"Entered card details for {card['Type']}")
+            time.sleep(1)
+            print(Fore.GREEN + f"Entered card details for {card['Type']}")
 
-            # Submit the form (you may need to adjust this based on the specific Stripe form)
             driver.find_element(By.NAME, "submit-button").click()
-            print("Submitted the form")
-            time.sleep(5)  # Wait for submission, adjust as necessary
-            print("Waited for submission")
+            print(Fore.GREEN + "Submitted the form")
+            time.sleep(5)
+            print(Fore.GREEN + "Waited for submission")
 
     except NoSuchElementException as e:
-        print(f"Error: {e}")
+        print(Fore.RED + f"Error: {e}")
     except TimeoutException as te:
-        print(f"Timeout error: {te}")
+        print(Fore.RED + f"Timeout error: {te}")
     finally:
         driver.quit()
 
@@ -146,10 +146,57 @@ def check_card_validity(card_number):
 
     return luhn_algorithm(card_number)
 
+# Function to read card details from a file
+def read_cards_from_file(filename):
+    cards = []
+    with open(filename, 'r') as f:
+        card = {}
+        for line in f:
+            if line.startswith("Type:"):
+                card['Type'] = line.split(": ")[1].strip()
+            elif line.startswith("Number:"):
+                card['Number'] = line.split(": ")[1].strip()
+            elif line.startswith("CVV:"):
+                card['CVV'] = line.split(": ")[1].strip()
+            elif line.startswith("Exp:"):
+                card['Exp'] = line.split(": ")[1].strip()
+            elif line.strip() == "------------------------------":
+                cards.append(card)
+                card = {}
+    return cards
+
+# Function to organize cards into folders and validate them
+def organize_and_validate_cards(cards):
+    if not os.path.exists('UNORGANISED'):
+        os.makedirs('UNORGANISED')
+    if not os.path.exists('WORKING_CARDS'):
+        os.makedirs('WORKING_CARDS')
+    if not os.path.exists('TRASHED'):
+        os.makedirs('TRASHED')
+
+    working_cards = []
+    trashed_cards = []
+
+    for card in cards:
+        if check_card_validity(card['Number']):
+            working_cards.append(card)
+        else:
+            trashed_cards.append(card)
+
+    save_to_txt(working_cards, 'WORKING_CARDS/working_cards.txt')
+    save_to_txt(trashed_cards, 'TRASHED/trashed_cards.txt')
+    save_to_txt(cards, 'UNORGANISED/unorganised_cards.txt')
+
+    print(Fore.GREEN + f"Organized {len(cards)} cards into WORKING_CARDS and TRASHED folders.")
+    print(Fore.CYAN + f"Number of working cards: {len(working_cards)}")
+    print(Fore.RED + f"Number of trashed cards: {len(trashed_cards)}")
+
+    return working_cards, trashed_cards
+
 # Function to display the main menu and handle user input
 def display_menu():
     github_link = "https://github.com/SuperManzDev"
-    print(r"""
+    print(Fore.MAGENTA + r"""
   ____ ____ ____ ____ ____ ____ ____
  ||C |||r |||a |||p |||y |||G |||e ||
  ||__|||__|||__|||__|||__|||__|||__||
@@ -161,146 +208,120 @@ Welcome to CRAPYGEN - Your Crappy Credit Card Generator and Tester
 
 WHAT CAN I DO?
 
-1. Generate fake credit card details (number, CVV, expiration date) for testing purposes.
-2. Save generated credit card information to a text file.
-3. Save generated credit card information to a CSV file.
-4. Interact with a provided Stripe checkout link to simulate payment form submissions.
-5. Generate fake names and addresses.
-6. Check validity of generated credit cards.
-7. Read credit card details from a text file and check their validity.
+1. Generate fake credit card details
+2. Save generated credit card information to a text file
+3. Save generated credit card information to a CSV file
+4. Interact with a provided Stripe checkout link to simulate payment form submissions
+5. Generate fake names and addresses
+6. Check validity of generated credit cards
+7. Read card details from a text file and organize them
 8. Exit
-
-About me: {}
-""".format(github_link))
-    choice = input("Enter the number of what you want to do (1-8): ").strip()
+""")
+    choice = input(Fore.YELLOW + "Enter the number of what you want to do (1-8): ").strip()
     return choice
 
 # Function to handle card type selection
 def select_card_types():
     card_types = []
-    print("""
+    print(Fore.MAGENTA + r"""
 SELECT CARD TYPES:
 
 1. AMEX
 2. Discover
 3. MC (MasterCard)
-4. Visa13
-5. Visa16
-6. Mixed (Select random types)
+4. Visa13 (Visa - 13 digits)
+5. Visa16 (Visa - 16 digits)
+6. All of the above
+
 """)
-    while True:
-        choice = input("Enter card type (1-6) or 'done' to finish: ").strip().lower()
-        if choice == '1':
-            card_types.append('amex')
-        elif choice == '2':
-            card_types.append('discover')
-        elif choice == '3':
-            card_types.append('mc')
-        elif choice == '4':
-            card_types.append('visa13')
-        elif choice == '5':
-            card_types.append('visa16')
-        elif choice == '6':
-            card_types = random.choices(['amex', 'discover', 'mc', 'visa13', 'visa16'], k=random.randint(1, 5))
-        elif choice == 'done':
-            break
-        else:
-            print("Invalid choice. Please enter a number from 1 to 6 or 'done'.")
+    selection = input(Fore.YELLOW + "Enter card type(s) (comma separated numbers, e.g., 1,3): ").strip()
+    if '6' in selection:
+        card_types = list(CreditCardGenerator.CCDATA.keys())
+    else:
+        selections = selection.split(',')
+        for sel in selections:
+            if sel == '1':
+                card_types.append('amex')
+            elif sel == '2':
+                card_types.append('discover')
+            elif sel == '3':
+                card_types.append('mc')
+            elif sel == '4':
+                card_types.append('visa13')
+            elif sel == '5':
+                card_types.append('visa16')
     return card_types
 
-# Function to read credit card details from a text file
-def read_cards_from_txt(filename):
-    cards = []
-    with open(filename, 'r') as f:
-        card = {}
-        for line in f:
-            if "Type:" in line:
-                card['Type'] = line.split(":")[1].strip()
-            elif "Number:" in line:
-                card['Number'] = line.split(":")[1].strip()
-            elif "CVV:" in line:
-                card['CVV'] = line.split(":")[1].strip()
-            elif "Exp:" in line:
-                card['Exp'] = line.split(":")[1].strip()
-            elif "------------------------------" in line:
-                cards.append(card)
-                card = {}
-    return cards
-
-# Main function
+# Main function to run the program
 def main():
     while True:
         choice = display_menu()
 
         if choice == '1':
+            num_cards = int(input(Fore.YELLOW + "Enter number of cards to generate: ").strip())
             card_types = select_card_types()
-            num_cards = int(input("Enter the total number of cards to generate: "))
-            try:
-                cards = generate_cards(card_types, num_cards)
-                for card in cards:
-                    print(card)  # Print generated card details
-            except ValueError as ve:
-                print(f"Error: {ve}")
+            cards = generate_cards(card_types, num_cards)
+            print(Fore.GREEN + f"Generated {len(cards)} credit card details.")
 
         elif choice == '2':
-            card_types = select_card_types()
-            num_cards = int(input("Enter the total number of cards to generate: "))
-            filename = input("Enter the filename to save (without extension): ").strip() + ".txt"
-            try:
-                cards = generate_cards(card_types, num_cards)
-                save_to_txt(cards, filename)
-            except ValueError as ve:
-                print(f"Error: {ve}")
+            if 'cards' in locals():
+                save_to_txt(cards, 'generated_cards.txt')
+            else:
+                print(Fore.RED + "Please generate cards first (option 1).")
 
         elif choice == '3':
-            card_types = select_card_types()
-            num_cards = int(input("Enter the total number of cards to generate: "))
-            filename = input("Enter the filename to save (without extension): ").strip() + ".csv"
-            try:
-                cards = generate_cards(card_types, num_cards)
-                save_to_csv(cards, filename)
-            except ValueError as ve:
-                print(f"Error: {ve}")
+            if 'cards' in locals():
+                save_to_csv(cards, 'generated_cards.csv')
+            else:
+                print(Fore.RED + "Please generate cards first (option 1).")
 
         elif choice == '4':
-            checkout_link = input("Enter the Stripe checkout link: ").strip()
+            checkout_link = input(Fore.YELLOW + "Enter the Stripe checkout link: ").strip()
+            num_cards = int(input(Fore.YELLOW + "Enter number of cards to submit: ").strip())
             card_types = select_card_types()
-            num_cards = int(input("Enter the number of cards to use for interaction: "))
-            try:
-                cards = generate_cards(card_types, num_cards)
-                interact_with_stripe_checkout(checkout_link, cards)
-            except ValueError as ve:
-                print(f"Error: {ve}")
+            cards = generate_cards(card_types, num_cards)
+            interact_with_stripe_checkout(checkout_link, cards)
 
         elif choice == '5':
-            num_entries = int(input("Enter the number of fake names and addresses to generate: "))
-            entries = generate_fake_info(num_entries)
-            for entry in entries:
-                print(entry)  # Print generated fake name and address
+            num_entries = int(input(Fore.YELLOW + "Enter number of fake names and addresses to generate: ").strip())
+            fake_info = generate_fake_info(num_entries)
+            for info in fake_info:
+                print(Fore.GREEN + f"Name: {info['Name']}, Address: {info['Address']}, City: {info['City']}, State: {info['State']}, Zipcode: {info['Zipcode']}")
 
         elif choice == '6':
-            card_number = input("Enter the credit card number to check validity: ").strip()
+            card_number = input(Fore.YELLOW + "Enter card number to check validity: ").strip()
             if check_card_validity(card_number):
-                print("The credit card number is valid.")
+                print(Fore.GREEN + "Card number is valid.")
             else:
-                print("The credit card number is invalid.")
+                print(Fore.RED + "Card number is invalid.")
 
         elif choice == '7':
-            filename = input("Enter the filename to read (with extension): ").strip()
-            if not os.path.isfile(filename):
-                print("File not found. Please check the filename and try again.")
-            else:
-                cards = read_cards_from_txt(filename)
-                for card in cards:
-                    validity = "valid" if check_card_validity(card['Number']) else "invalid"
-                    print(f"Card {card['Number']} is {validity}.")
+            filename = input(Fore.YELLOW + "Enter the filename to read card details from: ").strip()
+            cards = read_cards_from_file(filename)
+            working_cards, trashed_cards = organize_and_validate_cards(cards)
+            print(Fore.CYAN + f"Number of working cards: {len(working_cards)}")
+            print(Fore.RED + f"Number of trashed cards: {len(trashed_cards)}")
+
+            # Ask user if they want to delete the folders and create new cards
+            delete_choice = input(Fore.YELLOW + "Do you want to delete the non-working/organized/working cards and remake new ones? (y/n): ").strip().lower()
+            if delete_choice == 'y':
+                if os.path.exists('UNORGANISED'):
+                    os.remove('UNORGANISED/unorganised_cards.txt')
+                    os.rmdir('UNORGANISED')
+                if os.path.exists('WORKING_CARDS'):
+                    os.remove('WORKING_CARDS/working_cards.txt')
+                    os.rmdir('WORKING_CARDS')
+                if os.path.exists('TRASHED'):
+                    os.remove('TRASHED/trashed_cards.txt')
+                    os.rmdir('TRASHED')
+                print(Fore.GREEN + "Deleted existing cards.")
 
         elif choice == '8':
-            print("Exiting CRAPYGEN. Goodbye!")
+            print(Fore.MAGENTA + "Thank you for using CRAPYGEN. Goodbye!")
             break
 
         else:
-            print("Invalid choice. Please enter a number from 1 to 8.")
+            print(Fore.RED + "Invalid input. Please enter a number from 1 to 8.")
 
 if __name__ == "__main__":
     main()
