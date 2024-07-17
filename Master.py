@@ -149,7 +149,7 @@ def check_card_validity(card_number):
 # Function to display the main menu and handle user input
 def display_menu():
     github_link = "https://github.com/SuperManzDev"
-    print("""
+    print(r"""
   ____ ____ ____ ____ ____ ____ ____
  ||C |||r |||a |||p |||y |||G |||e ||
  ||__|||__|||__|||__|||__|||__|||__||
@@ -167,11 +167,12 @@ WHAT CAN I DO?
 4. Interact with a provided Stripe checkout link to simulate payment form submissions.
 5. Generate fake names and addresses.
 6. Check validity of generated credit cards.
-7. Exit
+7. Read credit card details from a text file and check their validity.
+8. Exit
 
 About me: {}
 """.format(github_link))
-    choice = input("Enter the number of what you want to do (1-7): ").strip()
+    choice = input("Enter the number of what you want to do (1-8): ").strip()
     return choice
 
 # Function to handle card type selection
@@ -206,6 +207,25 @@ SELECT CARD TYPES:
         else:
             print("Invalid choice. Please enter a number from 1 to 6 or 'done'.")
     return card_types
+
+# Function to read credit card details from a text file
+def read_cards_from_txt(filename):
+    cards = []
+    with open(filename, 'r') as f:
+        card = {}
+        for line in f:
+            if "Type:" in line:
+                card['Type'] = line.split(":")[1].strip()
+            elif "Number:" in line:
+                card['Number'] = line.split(":")[1].strip()
+            elif "CVV:" in line:
+                card['CVV'] = line.split(":")[1].strip()
+            elif "Exp:" in line:
+                card['Exp'] = line.split(":")[1].strip()
+            elif "------------------------------" in line:
+                cards.append(card)
+                card = {}
+    return cards
 
 # Main function
 def main():
@@ -266,11 +286,21 @@ def main():
                 print("The credit card number is invalid.")
 
         elif choice == '7':
+            filename = input("Enter the filename to read (with extension): ").strip()
+            if not os.path.isfile(filename):
+                print("File not found. Please check the filename and try again.")
+            else:
+                cards = read_cards_from_txt(filename)
+                for card in cards:
+                    validity = "valid" if check_card_validity(card['Number']) else "invalid"
+                    print(f"Card {card['Number']} is {validity}.")
+
+        elif choice == '8':
             print("Exiting CRAPYGEN. Goodbye!")
             break
 
         else:
-            print("Invalid choice. Please enter a number from 1 to 7.")
+            print("Invalid choice. Please enter a number from 1 to 8.")
 
 if __name__ == "__main__":
     main()
