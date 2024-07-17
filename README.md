@@ -1,18 +1,17 @@
-# CrapyGen
+# crapygen
 
-CrapyGen is a Python tool designed for generating fake credit card details and automating interactions with Stripe checkout links.
+## Overview
+crapygen is a Python application for generating fake credit card details and interacting with Stripe checkout links.
 
 ## Features
-
-- Generates fake credit card numbers, expiration dates, and CVV codes.
+- Generates fake credit card numbers for various card types.
 - Interacts with Stripe checkout links for testing purposes.
-- Supports multiple card types: AMEX, Discover, MasterCard, Visa (13-digit and 16-digit), and mixed types.
+- Option to include fake names and addresses.
+- Outputs results to CSV format for easy analysis.
 
 ## Installation
-
-To use CrapyGen, clone this repository and install the dependencies:
+Install dependencies using MastReqire.txt:
 
 ```bash
-git clone https://github.com/SuperManzDev/crapygen.git
-cd crapygen
 pip install -r MastReqire.txt
+
