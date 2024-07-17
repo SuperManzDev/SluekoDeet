@@ -14,4 +14,9 @@ Install dependencies using MastReqire.txt:
 
 ```bash
 pip install -r MastReqire.txt
+```
+## USAGE
 
+```bash
+python Master.py
+```
