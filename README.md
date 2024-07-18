@@ -1,7 +1,7 @@
-# crapygen
+# SluekoDeet
 
 ## Overview
-crapygen is a Python application for generating fake credit card details and interacting with Stripe checkout links.
+SluekoDeet is a Python application for generating fake credit card details and interacting with Stripe checkout links.
 
 ## Features
 - Generates fake credit card numbers for various card types.
